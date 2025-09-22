@@ -13,7 +13,6 @@ export async function saveTasks(tasks) {
     console.error("Gagal menyimpan:", e);
   }
 }
-
 // Load array tugas dari AsyncStorage
 export async function loadTasks() {
   try {
@@ -22,12 +21,16 @@ export async function loadTasks() {
 
     let tasks = JSON.parse(json);
 
-    // 🔧 Migration: kasih id jika kosong
+    // 🔧 Migration: kasih id jika kosong & paksa jadi string
     let fixed = false;
     tasks = tasks.map((t) => {
       if (!t.id) {
         fixed = true;
-        return { ...t, id: uuidv4() }; // tambahkan id baru
+        return { ...t, id: uuidv4() };
+      }
+      if (typeof t.id !== "string") {
+        fixed = true;
+        return { ...t, id: String(t.id) };
       }
       return t;
     });

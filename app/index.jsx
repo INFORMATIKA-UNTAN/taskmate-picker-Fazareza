@@ -6,7 +6,6 @@ import {
   StyleSheet,
   View,
   Button,
-  Alert,
 } from "react-native";
 import TaskItem from "../src/components/TaskItem";
 import FilterToolbarFancy from "../src/components/FilterToolbarFancy";
@@ -15,6 +14,9 @@ import { loadTasks, saveTasks, clearTasks } from "../src/storage/taskStorage";
 import { loadCategories, saveCategories } from "../src/storage/categoryStorage";
 import { pickColor } from "../src/constants/categories";
 import { weightOfPriority } from "../src/constants/priorities";
+import { dummyTasks } from "../src/data/dummyTasks";
+import { v4 as uuidv4 } from "uuid";
+import alert from "@/alert";
 
 export default function Home() {
   // [STATE] data
@@ -32,7 +34,23 @@ export default function Home() {
   // [INIT] Muat data
   useEffect(() => {
     (async () => {
-      setTasks(await loadTasks());
+      let loaded = await loadTasks();
+
+      // kalau kosong → isi dummy sekali saja
+      if (!loaded || loaded.length === 0) {
+        // kasih id string pasti
+        const withIds = dummyTasks.map((t) => ({
+          ...t,
+          id: String(t.id) || uuidv4(),
+        }));
+        await saveTasks(withIds);
+        loaded = withIds;
+      }
+
+      // normalisasi id biar selalu string unik
+      loaded = loaded.map((t) => ({ ...t, id: String(t.id) }));
+
+      setTasks(loaded);
       setCategories(await loadCategories());
     })();
   }, []);
@@ -50,7 +68,7 @@ export default function Home() {
 
   // [AKSI] Hapus 1 tugas
   const handleDelete = async (task) => {
-    Alert.alert("Konfirmasi", "Hapus tugas ini?", [
+    alert("Konfirmasi", "Hapus tugas ini?", [
       { text: "Batal" },
       {
         text: "Ya",
@@ -80,33 +98,29 @@ export default function Home() {
   // [AKSI] Clear
   const handleClearDone = () => {
     if (!doneCount) {
-      Alert.alert("Info", "Tidak ada tugas Done.");
+      alert("Info", "Tidak ada tugas Done.");
       return;
     }
-    Alert.alert(
-      "Hapus Tugas Selesai",
-      `Yakin hapus ${doneCount} tugas selesai?`,
-      [
-        { text: "Batal" },
-        {
-          text: "Hapus",
-          style: "destructive",
-          onPress: async () => {
-            const kept = tasks.filter((t) => t.status !== "done");
-            setTasks(kept);
-            await saveTasks(kept);
-          },
+    alert("Hapus Tugas Selesai", `Yakin hapus ${doneCount} tugas selesai?`, [
+      { text: "Batal" },
+      {
+        text: "Hapus",
+        style: "destructive",
+        onPress: async () => {
+          const kept = tasks.filter((t) => t.status !== "done");
+          setTasks(kept);
+          await saveTasks(kept);
         },
-      ]
-    );
+      },
+    ]);
   };
 
   const handleClearAll = () => {
     if (!tasks.length) {
-      Alert.alert("Info", "Daftar tugas kosong.");
+      alert("Info", "Daftar tugas kosong.");
       return;
     }
-    Alert.alert("Konfirmasi", "Hapus semua tugas?", [
+    alert("Konfirmasi", "Hapus semua tugas?", [
       { text: "Batal" },
       {
         text: "Ya",
@@ -220,7 +234,7 @@ export default function Home() {
       {/* LIST grouped by kategori */}
       <SectionList
         sections={groupedTasks}
-        keyExtractor={(item, index) => item.id?.toString() ?? index.toString()}
+        keyExtractor={(item) => item.id} // pakai id saja, jangan index
         contentContainerStyle={{ padding: 16 }}
         renderItem={({ item }) => (
           <TaskItem
